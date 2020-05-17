@@ -1,0 +1,118 @@
+from google.colab import drive
+drive.mount('/content/drive') 
+
+
+
+%cd "/content/drive/My Drive/ECE113" 
+
+
+
+from scipy.io import wavfile
+import numpy as np
+import pandas as pd
+import os
+from glob import glob
+PATH = '/content/drive/My Drive/ECE113/training_data_1'
+audio_file_paths = [y for x in os.walk(PATH) for y in glob(os.path.join(x[0], '*.wav'))]
+print(len(audio_file_paths))
+assert(len(audio_file_paths) == 1994)
+
+
+
+index = [i for i in range(len(audio_file_paths))]
+columns = ['data', 'label']
+df_train = pd.DataFrame(index=index, columns=columns)
+for i, file_path in enumerate(audio_file_paths):
+    fs, data = wavfile.read(file_path)
+    # label assigned to each chord is the name of the folder it is placed inside
+    label = os.path.dirname(file_path).split("/")[-1]
+    df_train.loc[i] = [data, label]
+    
+    
+    
+y = df_train.iloc[:, 1].values
+X = df_train.iloc[:, :-1].values
+X = np.squeeze(X)
+#X = np.stack(X, axis=0)
+
+
+
+from sklearn import preprocessing
+
+labelencoder_y = preprocessing.LabelEncoder()
+y = labelencoder_y.fit_transform(y)
+labelencoder_y.classes_
+
+
+
+#Things I'm unsure on 1. if these chords actually correspond to the note label I've given them. (I labelled them
+#according to the labelencoder_y.classes array above) 
+from scipy.fft import fft
+import matplotlib.pyplot as plt
+#rate = 44100
+orderarray = ['bm', 'c', 'em', 'am', 'f', 'd', 'g', 'e', 'dm', 'a']
+for x in range(0,10) :
+  r2 = fft(X[4+(200*x)][0:60000])
+  #xaxis = np.arange(len(X[1+(200*x)])) * rate / len(r2) 
+  plt.figure(1+x)
+  plt.plot(abs(r2))
+  plt.xlim([0,2000])
+  plt.xlabel('Value of k')
+  plt.ylabel('Intensity')
+  plt.title( orderarray[x] +' Response')
+  print(orderarray[x])
+
+
+
+
+PATH= './Problem_1_data/test_data_1'
+# max_length of audiofile
+
+index = [i for i in range(10)]
+columns = ['data']
+df_test_1 = pd.DataFrame(index=index, columns=columns)
+for i, file_path in enumerate(glob(os.path.join(PATH, '*.wav'))):
+    fs, data = wavfile.read(file_path)
+    df_test_1.loc[i] = [data]
+    
+    
+    
+X_test = df_test_1.iloc[:, :].values
+X_test = np.squeeze(X_test)
+
+
+
+def convolution_(signal_1, signal_2):
+  signal_1x = signal_1/np.linalg.norm(signal_1)
+  signal_2x = signal_2/np.linalg.norm(signal_2)
+  convarr = np.convolve(signal_1x, signal_2x[::-1])
+  num = ((np.linalg.norm(convarr))**2)/len(convarr)
+  return num
+  
+  
+  
+testvector = []
+for x in range(0,10):
+  re = X[7+(200*x)]
+  rx = fft(re)
+  ry = rx[0:2500]
+  #ry = ry/max(ry)
+  testvector.append(ry)
+
+
+
+def argmax_(signal_1):
+  a= []
+  rx = fft(signal_1)
+  ry = rx[0:2500]
+  for x in range(0,10):
+     ex = convolution_(abs(ry), abs(testvector[x]))
+     a.append(ex)
+     print(ex)
+  s = np.argmax(a)
+  return s
+  
+  
+#test code
+s = argmax_(X[765])
+print(s)
